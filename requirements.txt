@@ -1,13 +1,4 @@
-Package                   Version
-------------------------- -------
-altgraph                  0.17.3
-numpy                     1.24.3
-pip                       20.3.4
-pkg-resources             0.0.0
-pyinstaller               5.10.1
-pyinstaller-hooks-contrib 2023.2
-PyQt5                     5.15.9
-PyQt5-Qt5                 5.15.2
-PyQt5-sip                 12.12.1
-scipy                     1.10.1
-setuptools                44.1.1
+numpy
+pyinstaller
+PyQt5
+scipy
