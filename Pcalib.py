@@ -41,13 +41,18 @@ def invPsamDatchi1997(p, l0, T, T0):
 
 
 #  F. Datchi, High Pressure Research, 27:4, 447-463, DOI: 10.1080/08957950701659593 
-def PcBN(nu, T = 298, nu0 = 1058.4):
-    nu0_T = nu0 - 0.0091 * T - 1.54e-5 * T**2
-    B0_T = 396.5 - 0.0288 * (T - 300) - 6.84e-6 * (T - 300)**2
-    B0p = 3.62
-    P = (B0_T/B0p) * ( (nu/nu0_T)**2.876 - 1 )
-    return P
+def PcBN(nu, nu0, T, T0):
+	# find nu(p = 0 GPa, T = 0 K)
+	nu00 = nu0 + 0.0091 * T0 + 1.54e-5 * T0**2
 
-def find_cBN_nu00(nu, P, T):
-    result = minimize( lambda nu00: (PcBN(nu, T, nu00) - P)**2, 1058.4) # Initial value F. Datchi HPR
-    return np.float( result.x )
+	nu0_T = nu00 - 0.0091 * T - 1.54e-5 * T**2
+	B0_T = 396.5 - 0.0288 * (T - 300) - 6.84e-6 * (T - 300)**2
+	B0p = 3.62
+	P = (B0_T/B0p) * ( (nu/nu0_T)**2.876 - 1 )
+	return P
+
+def invPcBN(p, nu0, T, T0):
+	res = minimize( lambda x: (PcBN(x, nu0, T, T0) - p)**2, x0=1058, tol=1e-5)
+	l = res.x[0]	
+
+	return l

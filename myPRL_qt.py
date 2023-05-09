@@ -41,6 +41,11 @@ class MyPRLMain(QMainWindow):
 						  'Diamond Raman Edge': [],
 						  'cBN Raman':          ['Datchi2007']}
 
+		self.calibtempcordict = {'Ruby'                   :['Datchi2007'],
+							     'Samarium Borate'        :[],
+							     'Diamond Raman Edge'     :[],
+							     'cBN Raman'              :['Datchi2007']}
+
 ##############################################################################
 
 		# large layout containing all widgets
@@ -233,7 +238,7 @@ class MyPRLMain(QMainWindow):
 
 			elif self.calibration_combo.currentText() == 'Datchi2007':
 				
-				P = -12
+				P = Pcalib.PcBN(lam, lam0, T, T0)
 	
 			self.P_spinbox.setValue(P)
 
@@ -251,7 +256,11 @@ class MyPRLMain(QMainWindow):
 			elif self.calibration_combo.currentText() == 'Datchi1997':
 				
 				lam = Pcalib.invPsamDatchi1997(P, lam0, T, T0)
-	
+
+			elif self.calibration_combo.currentText() == 'Datchi2007':
+				
+				lam = Pcalib.invPcBN(P, lam0, T, T0)
+
 			self.lam_spinbox.setValue(lam)		
 
 	def updatecalib(self, s):
@@ -259,6 +268,10 @@ class MyPRLMain(QMainWindow):
 		self.calibration_combo.clear()
 		self.calibration_combo.addItems(
 			self.calibdict[self.calibrant_combo.currentText()])
+
+		self.temperaturecor_combo.clear()
+		self.temperaturecor_combo.addItems(
+			self.calibtempcordict[self.calibrant_combo.currentText()])
 
 		# reset lam0. Change labels. Evaluate is called.
 		if self.calibrant_combo.currentText() == 'Ruby':
