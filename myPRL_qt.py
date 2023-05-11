@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import (QApplication,
 							 QSpinBox,
 							 QDoubleSpinBox,
 							 QStackedWidget)
+from PyQt5.QtCore import QLocale
 
 # my modules
 import Pcalib
@@ -32,14 +33,17 @@ class MyPRLMain(QMainWindow):
 	def __init__(self):
 		super().__init__()
 
+		# dot as decimal separator in the whole app
+		self.setLocale(QLocale(QLocale.C))
+
 		self.setWindowTitle("myPRL qt")
 		self.resize(240, 500)
 
 		# calibrations dict
-		self.calibrations = {'Ruby2020'                  : 'Datchi2007'              ,
-						     'Samarium Borate Datchi1997': 'NA',
-						     'Diamond Raman Edge'        : 'NA',
-						     'cBN Raman Datchi2007'      : 'Datchi2007'}
+		self.calibrations = {'Ruby2020'                        : 'Datchi2007',
+						     'Samarium Borate Datchi1997'      : 'NA',
+						     'Diamond Raman Edge Akahama2006'  : 'NA',
+						     'cBN Raman Datchi2007'            : 'Datchi2007'}
 
 ##############################################################################
 
@@ -226,6 +230,10 @@ class MyPRLMain(QMainWindow):
 				
 					P = Pcalib.PsamDatchi1997(lam, lam0, T, T0)
 
+				elif self.calibration_combo.currentText() == 'Diamond Raman Edge Akahama2006':
+				
+					P = Pcalib.PAkahama2006(lam, lam0, T, T0)
+
 				elif self.calibration_combo.currentText() == 'cBN Raman Datchi2007':
 				
 					P = Pcalib.PcBN(lam, lam0, T, T0)
@@ -254,6 +262,10 @@ class MyPRLMain(QMainWindow):
 				elif self.calibration_combo.currentText() == 'Samarium Borate Datchi1997':
 					
 					lam = Pcalib.invPsamDatchi1997(P, lam0, T, T0)
+
+				elif self.calibration_combo.currentText() == 'Diamond Raman Edge Akahama2006':
+
+					lam = Pcalib.invPAkahama2006(P, lam0, T, T0)
 	
 				elif self.calibration_combo.currentText() == 'cBN Raman Datchi2007':
 					
@@ -276,20 +288,37 @@ class MyPRLMain(QMainWindow):
 			self.lam_label.setText('lambda (nm)')
 			self.lam0_label.setText('lambda0 (nm)')
 
+			self.lam_spinbox.setSingleStep(.01)
+			self.lam0_spinbox.setSingleStep(.01)
+
 			self.lam0_spinbox.setValue(694.28)
 
 		if self.calibration_combo.currentText() == 'Samarium Borate Datchi1997':
 			self.lam_label.setText('lambda (nm)')
 			self.lam0_label.setText('lambda0 (nm)')
+
+			self.lam_spinbox.setSingleStep(.01)
+			self.lam0_spinbox.setSingleStep(.01)
 			
 			self.lam0_spinbox.setValue(685.41)
+
+		if self.calibration_combo.currentText() == 'Diamond Raman Edge Akahama2006':
+			self.lam_label.setText('nu (cm-1)')
+			self.lam0_label.setText('nu0 (cm-1)')
+
+			self.lam_spinbox.setSingleStep(.1)
+			self.lam0_spinbox.setSingleStep(.1)
+			
+			self.lam0_spinbox.setValue(1333)
 
 		if self.calibration_combo.currentText() == 'cBN Raman Datchi2007':
 			self.lam_label.setText('nu (cm-1)')
 			self.lam0_label.setText('nu0 (cm-1)')
 
-			self.lam0_spinbox.setValue(1054.0)
+			self.lam_spinbox.setSingleStep(.1)
+			self.lam0_spinbox.setSingleStep(.1)
 
+			self.lam0_spinbox.setValue(1054.0)
 
 app = QApplication(sys.argv)
 

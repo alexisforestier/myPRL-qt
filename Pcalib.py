@@ -56,3 +56,17 @@ def invPcBN(p, nu0, T, T0):
 	l = res.x[0]	
 
 	return l
+
+def PAkahama2006(nu, nu0, T, T0):
+	K0  = 547 # GPa
+	K0p = 3.75
+	dnu = nu - nu0 
+	p = K0 * (dnu/nu0) * (1 + 0.5 * (K0p -1)*dnu/nu0)
+	return p 
+
+
+def invPAkahama2006(p, nu0, T, T0):
+	res = minimize( lambda x: (PAkahama2006(x, nu0, T, T0) - p)**2, x0=1400, tol=1e-5)
+	l = res.x[0]	
+
+	return l	
