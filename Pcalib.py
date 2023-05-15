@@ -57,6 +57,7 @@ def invPcBN(p, nu0, T, T0):
 
 	return l
 
+# AKAHAMA, KAWAMURA, JOURNAL OF APPLIED PHYSICS 100, 043516 2006
 def PAkahama2006(nu, nu0, T, T0):
 	K0  = 547 # GPa
 	K0p = 3.75

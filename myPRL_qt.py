@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+import pandas as pd
 from scipy.optimize import minimize
 from PyQt5.QtWidgets import (QApplication, 
 							 QWidget, 
@@ -44,6 +45,14 @@ class MyPRLMain(QMainWindow):
 						     'Samarium Borate Datchi1997'      : 'NA',
 						     'Diamond Raman Edge Akahama2006'  : 'NA',
 						     'cBN Raman Datchi2007'            : 'Datchi2007'}
+
+		self.data = pd.DataFrame(columns=['lam', 
+										  'lam0',
+										  'T',
+										  'T0',
+										  'P',
+										  'Pm',
+										  'calib'])
 
 ##############################################################################
 
@@ -206,7 +215,11 @@ class MyPRLMain(QMainWindow):
 
 		self.P_spinbox.valueChanged.connect(self.evaluate)
 
+		self.add_PmP_button.clicked.connect(self.add)
+
 		self.calibration_combo.currentIndexChanged.connect(self.updatecalib)
+
+
 
 		# evaluate is called through updatecalib
 		self.updatecalib(self)
@@ -226,15 +239,18 @@ class MyPRLMain(QMainWindow):
 	
 					P = Pcalib.Pruby2020(lam, lam0, T, T0)
 
-				elif self.calibration_combo.currentText() == 'Samarium Borate Datchi1997':
+				elif self.calibration_combo.currentText() == \
+											'Samarium Borate Datchi1997':
 				
 					P = Pcalib.PsamDatchi1997(lam, lam0, T, T0)
 
-				elif self.calibration_combo.currentText() == 'Diamond Raman Edge Akahama2006':
+				elif self.calibration_combo.currentText() == \
+											'Diamond Raman Edge Akahama2006':
 				
 					P = Pcalib.PAkahama2006(lam, lam0, T, T0)
 
-				elif self.calibration_combo.currentText() == 'cBN Raman Datchi2007':
+				elif self.calibration_combo.currentText() == \
+											'cBN Raman Datchi2007':
 				
 					P = Pcalib.PcBN(lam, lam0, T, T0)
 
@@ -259,15 +275,18 @@ class MyPRLMain(QMainWindow):
 		
 					lam = Pcalib.invPruby2020(P, lam0, T, T0)
 	
-				elif self.calibration_combo.currentText() == 'Samarium Borate Datchi1997':
+				elif self.calibration_combo.currentText() == \
+											'Samarium Borate Datchi1997':
 					
 					lam = Pcalib.invPsamDatchi1997(P, lam0, T, T0)
 
-				elif self.calibration_combo.currentText() == 'Diamond Raman Edge Akahama2006':
+				elif self.calibration_combo.currentText() == \
+											'Diamond Raman Edge Akahama2006':
 
 					lam = Pcalib.invPAkahama2006(P, lam0, T, T0)
 	
-				elif self.calibration_combo.currentText() == 'cBN Raman Datchi2007':
+				elif self.calibration_combo.currentText() == \
+											'cBN Raman Datchi2007':
 					
 					lam = Pcalib.invPcBN(P, lam0, T, T0)
 	
@@ -293,7 +312,8 @@ class MyPRLMain(QMainWindow):
 
 			self.lam0_spinbox.setValue(694.28)
 
-		if self.calibration_combo.currentText() == 'Samarium Borate Datchi1997':
+		if self.calibration_combo.currentText() == \
+											'Samarium Borate Datchi1997':
 			self.lam_label.setText('lambda (nm)')
 			self.lam0_label.setText('lambda0 (nm)')
 
@@ -302,7 +322,8 @@ class MyPRLMain(QMainWindow):
 			
 			self.lam0_spinbox.setValue(685.41)
 
-		if self.calibration_combo.currentText() == 'Diamond Raman Edge Akahama2006':
+		if self.calibration_combo.currentText() == \
+										'Diamond Raman Edge Akahama2006':
 			self.lam_label.setText('nu (cm-1)')
 			self.lam0_label.setText('nu0 (cm-1)')
 
@@ -311,7 +332,8 @@ class MyPRLMain(QMainWindow):
 			
 			self.lam0_spinbox.setValue(1333)
 
-		if self.calibration_combo.currentText() == 'cBN Raman Datchi2007':
+		if self.calibration_combo.currentText() == \
+											'cBN Raman Datchi2007':
 			self.lam_label.setText('nu (cm-1)')
 			self.lam0_label.setText('nu0 (cm-1)')
 
@@ -319,6 +341,21 @@ class MyPRLMain(QMainWindow):
 			self.lam0_spinbox.setSingleStep(.1)
 
 			self.lam0_spinbox.setValue(1054.0)
+
+	def add(self, s):
+
+		d_i = {'lam':   self.lam_spinbox.value(),
+		       'lam0':  self.lam0_spinbox.value(),
+		       'T':     self.T_spinbox.value(),
+		       'T0':    self.T0_spinbox.value(),
+		       'P':     self.P_spinbox.value(),
+		       'Pm':    self.Pm_spinbox.value(),
+		       'calib': self.calibration_combo.currentText()}
+
+		self.data = pd.concat([self.data, pd.DataFrame(d_i, 
+									index = [len(self.data)+1])])
+
+		print(self.data)
 
 app = QApplication(sys.argv)
 
