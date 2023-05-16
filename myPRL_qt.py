@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
+from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import (QApplication, 
 							 QWidget, 
 							 QMainWindow, 
@@ -22,13 +23,11 @@ from PyQt5.QtCore import QLocale
 # my modules
 import Pcalib
 
-
 class MyQSeparator(QFrame):
 	def __init__(self):
 		super().__init__()
 		self.setFrameShape(QFrame.HLine)
 		self.setFrameShadow(QFrame.Sunken)
-
 
 class MyPRLMain(QMainWindow):
 	def __init__(self):
@@ -41,10 +40,37 @@ class MyPRLMain(QMainWindow):
 		self.resize(240, 500)
 
 		# calibrations dict
-		self.calibrations = {'Ruby2020'                        : 'Datchi2007',
-						     'Samarium Borate Datchi1997'      : 'NA',
-						     'Diamond Raman Edge Akahama2006'  : 'NA',
-						     'cBN Raman Datchi2007'            : 'Datchi2007'}
+		self.calibrations = {'Ruby2020':
+								{'func':Pcalib.Pruby2020,
+								 'Tcor':'Datchi2007',
+								 'col':'lightcoral',
+								 'unit':'nm',
+								 'lam_default':694.28,
+								 'lam_step':.01},
+
+						     'Samarium Borate Datchi1997':
+						     	{'func':Pcalib.PsamDatchi1997,
+						     	 'Tcor':'NA',
+						     	 'col':'moccasin',
+						     	 'unit':'nm',
+						     	 'lam_default':685.41,
+						     	 'lam_step':.01},
+
+						     'Diamond Raman Edge Akahama2006':
+						     	{'func':Pcalib.PAkahama2006,
+						     	 'Tcor':'NA',
+						     	 'col':'darkgrey',
+						     	 'unit':'cm-1',
+						     	 'lam_default':1333,
+						     	 'lam_step':.1},
+
+						     'cBN Raman Datchi2007': 
+						     	{'func':Pcalib.PcBN,
+						     	 'Tcor':'Datchi2007',
+						     	 'col':'lightblue',
+						     	 'unit':'cm-1',
+						     	 'lam_default':1054,
+						     	 'lam_step':.1}}
 
 		self.data = pd.DataFrame(columns=['lam', 
 										  'lam0',
@@ -95,10 +121,8 @@ class MyPRLMain(QMainWindow):
 
 		self.lam_spinbox.setDecimals(2)
 		self.lam_spinbox.setRange(-np.inf, +np.inf)
-		self.lam_spinbox.setSingleStep(.01)
 		self.lam0_spinbox.setDecimals(2)
 		self.lam0_spinbox.setRange(-np.inf, +np.inf)
-		self.lam0_spinbox.setSingleStep(.01)
 
 		self.T_spinbox.setDecimals(0)
 		self.T_spinbox.setRange(-np.inf, +np.inf)
@@ -159,6 +183,12 @@ class MyPRLMain(QMainWindow):
 		self.calibration_combo.setMinimumWidth(100)
 
 		self.calibration_combo.addItems( self.calibrations.keys() )
+		
+		for ind in range(len(self.calibrations.keys())):
+			k, v = list( self.calibrations.items() )[ind]
+
+			self.calibration_combo.model().item(ind).setBackground(QColor(
+				v['col']))
 
 		# scales layout
 		scales_layout = QGridLayout()
@@ -191,7 +221,6 @@ class MyPRLMain(QMainWindow):
 		
 		layout.addLayout(pressure_layout)
 
-
 		# vcontainer is the central widget for the MainWindow
 		vcontainer = QWidget()
 		vcontainer.setLayout(layout)
@@ -199,11 +228,11 @@ class MyPRLMain(QMainWindow):
 		#self.setLayout(layout) #only if inherits from QWidget/not QMainWindow
 
 
-
 ##############################################################################
 		
 		# init some values:
 		self.lam_spinbox.setValue(694.28)
+		# lam0 is done through update
 		self.T_spinbox.setValue(298)
 		self.T0_spinbox.setValue(298)
 		
@@ -219,128 +248,74 @@ class MyPRLMain(QMainWindow):
 
 		self.calibration_combo.currentIndexChanged.connect(self.updatecalib)
 
-
-
-		# evaluate is called through updatecalib
+		# evaluate is called through updatecalib through valuechanged of lam0
 		self.updatecalib(self)
-		
-
 
 	def evaluate(self, s):
 		if not self.P_spinbox.hasFocus():
+
+			lam = self.lam_spinbox.value()
+			lam0  = self.lam0_spinbox.value()
+			T = self.T_spinbox.value()
+			T0 = self.T0_spinbox.value()
+			cal = self.calibration_combo.currentText()
+			calfunc = self.calibrations[cal]['func']
+
 			try:
 
-				lam = self.lam_spinbox.value()
-				lam0  = self.lam0_spinbox.value()
-				T = self.T_spinbox.value()
-				T0 = self.T0_spinbox.value()
+				P = calfunc(lam, lam0, T, T0)
 
-				if self.calibration_combo.currentText() == 'Ruby2020':
-	
-					P = Pcalib.Pruby2020(lam, lam0, T, T0)
-
-				elif self.calibration_combo.currentText() == \
-											'Samarium Borate Datchi1997':
-				
-					P = Pcalib.PsamDatchi1997(lam, lam0, T, T0)
-
-				elif self.calibration_combo.currentText() == \
-											'Diamond Raman Edge Akahama2006':
-				
-					P = Pcalib.PAkahama2006(lam, lam0, T, T0)
-
-				elif self.calibration_combo.currentText() == \
-											'cBN Raman Datchi2007':
-				
-					P = Pcalib.PcBN(lam, lam0, T, T0)
-
-				
 				self.P_spinbox.setValue(P)
 				self.P_spinbox.setStyleSheet("background: #c6fcc5;")
+			
+			except:	
 				
-			except:
-
 				self.P_spinbox.setStyleSheet("background: #ff7575;")
 
 		else: 
+			# inverse evaluation
+			P = self.P_spinbox.value()
+			lam0  = self.lam0_spinbox.value()
+			T = self.T_spinbox.value()
+			T0 = self.T0_spinbox.value()
+			cal = self.calibration_combo.currentText()
+			calfunc = self.calibrations[cal]['func']
 
 			try:
-				# inverse evaluation
-				P = self.P_spinbox.value()
-				lam0  = self.lam0_spinbox.value()
-				T = self.T_spinbox.value()
-				T0 = self.T0_spinbox.value()
+				
+				lam = Pcalib.invfuncP(calfunc, P, lam0, T, T0)
 	
-				if self.calibration_combo.currentText() == 'Ruby2020':
-		
-					lam = Pcalib.invPruby2020(P, lam0, T, T0)
-	
-				elif self.calibration_combo.currentText() == \
-											'Samarium Borate Datchi1997':
-					
-					lam = Pcalib.invPsamDatchi1997(P, lam0, T, T0)
-
-				elif self.calibration_combo.currentText() == \
-											'Diamond Raman Edge Akahama2006':
-
-					lam = Pcalib.invPAkahama2006(P, lam0, T, T0)
-	
-				elif self.calibration_combo.currentText() == \
-											'cBN Raman Datchi2007':
-					
-					lam = Pcalib.invPcBN(P, lam0, T, T0)
-	
-
 				self.lam_spinbox.setValue(lam)
 				self.lam_spinbox.setStyleSheet("background: #c6fcc5;")
-
+			
 			except:
+				
 				self.lam_spinbox.setStyleSheet("background: #ff7575;")
 
 	def updatecalib(self, s):
 
 		self.temperaturecor_Label.setText(
-			self.calibrations[self.calibration_combo.currentText()])
+			self.calibrations[self.calibration_combo.currentText()]['Tcor'])
 
-		# reset lam0. Change labels. Evaluate is called.
-		if self.calibration_combo.currentText() == 'Ruby2020':
+		col1 = self.calibration_combo.model().item(
+		   self.calibration_combo.currentIndex()).background().color().getRgb() 
+		self.calibration_combo.setStyleSheet("background-color: rgba{};\
+					selection-background-color: k;".format(col1))
+
+		calval = self.calibrations[self.calibration_combo.currentText()]
+
+		if calval['unit'] == 'nm':
 			self.lam_label.setText('lambda (nm)')
 			self.lam0_label.setText('lambda0 (nm)')
 
-			self.lam_spinbox.setSingleStep(.01)
-			self.lam0_spinbox.setSingleStep(.01)
-
-			self.lam0_spinbox.setValue(694.28)
-
-		if self.calibration_combo.currentText() == \
-											'Samarium Borate Datchi1997':
-			self.lam_label.setText('lambda (nm)')
-			self.lam0_label.setText('lambda0 (nm)')
-
-			self.lam_spinbox.setSingleStep(.01)
-			self.lam0_spinbox.setSingleStep(.01)
-			
-			self.lam0_spinbox.setValue(685.41)
-
-		if self.calibration_combo.currentText() == \
-										'Diamond Raman Edge Akahama2006':
+		elif calval['unit'] == 'cm-1':
 			self.lam_label.setText('nu (cm-1)')
 			self.lam0_label.setText('nu0 (cm-1)')
 
-			self.lam_spinbox.setSingleStep(.1)
-			self.lam0_spinbox.setSingleStep(.1)
-			
-			self.lam0_spinbox.setValue(1333)
+		self.lam_spinbox.setSingleStep(calval['lam_step'])
+		self.lam0_spinbox.setSingleStep(calval['lam_step'])
 
-		if self.calibration_combo.currentText() == \
-											'cBN Raman Datchi2007':
-			self.lam_label.setText('nu (cm-1)')
-			self.lam0_label.setText('nu0 (cm-1)')
-
-			self.lam_spinbox.setSingleStep(.1)
-			self.lam0_spinbox.setSingleStep(.1)
-
-			self.lam0_spinbox.setValue(1054.0)
+		self.lam0_spinbox.setValue(calval['lam_default'])
 
 	def add(self, s):
 
@@ -354,8 +329,6 @@ class MyPRLMain(QMainWindow):
 
 		self.data = pd.concat([self.data, pd.DataFrame(d_i, 
 									index = [len(self.data)+1])])
-
-		print(self.data)
 
 app = QApplication(sys.argv)
 

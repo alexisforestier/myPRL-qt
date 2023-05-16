@@ -9,16 +9,6 @@ def Pruby2020(l, l0, T, T0):
 
 	return P
 
-def invPruby2020(p, l0, T, T0):
-#	l1 = np.linspace(694, 740, 50)
-#	p1 = Pruby2020(l1, l0, T, T0)
-#	polyapprox = np.poly1d(np.polyfit(p1, l1, 2))
-#	print(polyapprox(p))
-	res = minimize( lambda x: (Pruby2020(x, l0, T, T0) - p)**2, x0=700, tol=1e-5)
-	l = res.x[0]	
-
-	return l
-
 #  F. Datchi, High Pressure Research, 27:4, 447-463, DOI: 10.1080/08957950701659593 
 def PsamDatchi1997(l, l0, T, T0):
     dT = T - T0
@@ -32,14 +22,6 @@ def PsamDatchi1997(l, l0, T, T0):
     P = 4.032 * dl * (1 + 9.29e-3 * dl) / (1 + 2.32e-2 * dl)
     return P
 
-def invPsamDatchi1997(p, l0, T, T0):
-	res = minimize( lambda x: (PsamDatchi1997(x, l0, T, T0) - p)**2, x0=690, tol=1e-5)
-	l = res.x[0]	
-
-	return l
-
-
-
 #  F. Datchi, High Pressure Research, 27:4, 447-463, DOI: 10.1080/08957950701659593 
 def PcBN(nu, nu0, T, T0):
 	# find nu(p = 0 GPa, T = 0 K)
@@ -51,12 +33,6 @@ def PcBN(nu, nu0, T, T0):
 	P = (B0_T/B0p) * ( (nu/nu0_T)**2.876 - 1 )
 	return P
 
-def invPcBN(p, nu0, T, T0):
-	res = minimize( lambda x: (PcBN(x, nu0, T, T0) - p)**2, x0=1058, tol=1e-5)
-	l = res.x[0]	
-
-	return l
-
 # AKAHAMA, KAWAMURA, JOURNAL OF APPLIED PHYSICS 100, 043516 2006
 def PAkahama2006(nu, nu0, T, T0):
 	K0  = 547 # GPa
@@ -65,9 +41,8 @@ def PAkahama2006(nu, nu0, T, T0):
 	p = K0 * (dnu/nu0) * (1 + 0.5 * (K0p -1)*dnu/nu0)
 	return p 
 
-
-def invPAkahama2006(p, nu0, T, T0):
-	res = minimize( lambda x: (PAkahama2006(x, nu0, T, T0) - p)**2, x0=1400, tol=1e-5)
-	l = res.x[0]	
-
-	return l	
+def invfuncP(func, p, nu0, T, T0):
+	res = minimize( lambda x: ( func(x, nu0, T, T0) - p )**2, x0=nu0, tol=1e-5)
+	l = res.x[0]
+	
+	return l
