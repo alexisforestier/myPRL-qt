@@ -59,29 +59,27 @@ class DFTableWidget(QTableWidget):
 				self.setItem(irow, icol, 
 					QTableWidgetItem( str(self.df.iloc[irow,icol]) ))
 
-		#self.cellChanged[int,int].connect( self.getfromentry )
+		self.cellChanged[int,int].connect( self.getfromentry )
 
 	def getfromentry(self, row, col):
 
+
+		# HERE THERE IS AN INFINITE RECALL IF ONE USE updatetable!!!!
 		try:
 			self.df.iloc[row, col] = float( self.item(row, col).text() )
 		except:
 			pass
 
-		print(self.df)
-		return self.df
+		print(1)
+		return 0
 
 	def updatetable(self, df):
-		print(not df.equals(self.df))
 		if not df.equals(self.df):
 			# populate
-			nrows, ncols = self.df.shape
+			nrows, ncols = df.shape
 
 	#		self.setColumnCount(ncols)
 			self.setRowCount(nrows)
-			print(self.rowCount())
-
-			print(df)
 			for irow in range(self.rowCount()):
 				for icol in range(self.columnCount()):
 					self.setItem(irow, icol, 
@@ -415,7 +413,7 @@ class MyPRLMain(QMainWindow):
 		self.data = pd.concat([self.data, pd.DataFrame(d_i, 
 									index = [len(self.data)+1])])
 
-	#	self.ptable_window.updatetable(self.data)
+		self.ptable_window.updatetable(self.data)
 
 
 	def showtable(self, s):
