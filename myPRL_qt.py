@@ -25,7 +25,7 @@ from PyQt5.QtWidgets import (QApplication,
 							 QStackedWidget)
 from PyQt5.QtCore import QLocale
 
-# my modules
+# my modules:
 import Pcalib
 
 
@@ -36,42 +36,73 @@ class MyQSeparator(QFrame):
 		self.setFrameShadow(QFrame.Sunken)
 
 
-class PTableWindow(QWidget):
-	def __init__(self, data):
+class DFTableWidget(QTableWidget):
+	'''a general widget class for pandas.DataFrames'''
+	def __init__(self, df):
 		super().__init__()
 
-		self.resize(400,300)
+		# at init self.df is created
+		self.df = df
+		self.setStyleSheet('font-size: 14px;')
 
-		layout = QVBoxLayout()
-
-		self.data = data
-		self.setStyleSheet('font-size: 20px;')
-
-		nrows = len( data )
-		ncols = len( data[0].__dict__.keys() )
+		nrows, ncols = self.df.shape
 
 		self.setColumnCount(ncols)
 		self.setRowCount(nrows)
 
-		self.setHorizontalHeaderLabels( list(data[0].__dict__.keys()) )
+		self.setHorizontalHeaderLabels( list(self.df.columns) )
 		self.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
-		for irow in range(nrows):
-			for icol in range(ncols):
+		# populate
+		for irow in range(self.rowCount()):
+			for icol in range(self.columnCount()):
 				self.setItem(irow, icol, 
-					QTableWidgetItem( str(df.iloc[irow,icol]) ))
+					QTableWidgetItem( str(self.df.iloc[irow,icol]) ))
 
-#		self.cellChanged[int,int].connect( self.update_from_entry )
-#
-#	def update_from_entry(self, row, col):
-#		try:
-#			self.df.iloc[row, col] = float( self.item(row, col).text() )
-#		except:
-#			pass		
+		#self.cellChanged[int,int].connect( self.getfromentry )
 
+	def getfromentry(self, row, col):
+
+		try:
+			self.df.iloc[row, col] = float( self.item(row, col).text() )
+		except:
+			pass
+
+		print(self.df)
+		return self.df
+
+	def updatetable(self, df):
+		print(not df.equals(self.df))
+		if not df.equals(self.df):
+			# populate
+			nrows, ncols = self.df.shape
+
+	#		self.setColumnCount(ncols)
+			self.setRowCount(nrows)
+			print(self.rowCount())
+
+			print(df)
+			for irow in range(self.rowCount()):
+				for icol in range(self.columnCount()):
+					self.setItem(irow, icol, 
+						QTableWidgetItem( str(df.iloc[irow,icol]) ))
+
+
+class PressureTableWindow(QWidget):
+	def __init__(self, df):
+		super().__init__()
+
+		self.resize(600,400)
+
+		layout = QVBoxLayout()
+		
+		self.table_widget = DFTableWidget(df)
+		layout.addWidget(self.table_widget)
+		
 		self.setLayout(layout)
 
-
+	def updatetable(self, df):
+		 self.table_widget.updatetable(df)
 
 
 class MyPRLMain(QMainWindow):
@@ -84,8 +115,6 @@ class MyPRLMain(QMainWindow):
 		self.setWindowTitle("myPRL qt")
 		self.resize(240, 500)
 
-		self.ptable_window = None 
-
 		self.data = pd.DataFrame(columns=['lam', 
 										  'lam0',
 										  'T',
@@ -94,7 +123,9 @@ class MyPRLMain(QMainWindow):
 										  'Pm',
 										  'calib'])
 
-		# calibrations dict  - to be changed using a calibration class
+		self.ptable_window = PressureTableWindow(self.data) 
+
+		# calibrations dict  - to be changed using a calibration class?
 		self.calibrations = {'Ruby2020':
 								{'func':Pcalib.Pruby2020,
 								 'Tcor':'Datchi2007',
@@ -288,6 +319,8 @@ class MyPRLMain(QMainWindow):
 		self.T_spinbox.setValue(298)
 		self.T0_spinbox.setValue(298)
 		
+##############################################################################
+
 		# Connects
 		self.lam_spinbox.valueChanged.connect(self.evaluate)
 		self.lam0_spinbox.valueChanged.connect(self.evaluate)
@@ -382,12 +415,10 @@ class MyPRLMain(QMainWindow):
 		self.data = pd.concat([self.data, pd.DataFrame(d_i, 
 									index = [len(self.data)+1])])
 
-		print( self.data )
+	#	self.ptable_window.updatetable(self.data)
+
 
 	def showtable(self, s):
-		if self.ptable_window is None:
-			self.ptable_window = PTableWindow()
-		# show in any case
 		self.ptable_window.show()
 
 
