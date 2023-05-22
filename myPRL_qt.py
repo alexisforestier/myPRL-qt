@@ -2,7 +2,8 @@ import sys
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import (QColor, 
+						QDoubleValidator)
 from PyQt5.QtWidgets import (QApplication, 
 							 QWidget, 
 							 QMainWindow, 
@@ -16,6 +17,10 @@ from PyQt5.QtWidgets import (QApplication,
 							 QGridLayout,
 							 QFrame,
 							 QSpinBox,
+							 QTableWidget,
+							 QTableWidgetItem,
+							 QHeaderView,
+							 QItemDelegate,
 							 QDoubleSpinBox,
 							 QStackedWidget)
 from PyQt5.QtCore import QLocale
@@ -23,11 +28,51 @@ from PyQt5.QtCore import QLocale
 # my modules
 import Pcalib
 
+
 class MyQSeparator(QFrame):
 	def __init__(self):
 		super().__init__()
 		self.setFrameShape(QFrame.HLine)
 		self.setFrameShadow(QFrame.Sunken)
+
+
+class PTableWindow(QWidget):
+	def __init__(self, data):
+		super().__init__()
+
+		self.resize(400,300)
+
+		layout = QVBoxLayout()
+
+		self.data = data
+		self.setStyleSheet('font-size: 20px;')
+
+		nrows = len( data )
+		ncols = len( data[0].__dict__.keys() )
+
+		self.setColumnCount(ncols)
+		self.setRowCount(nrows)
+
+		self.setHorizontalHeaderLabels( list(data[0].__dict__.keys()) )
+		self.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+		for irow in range(nrows):
+			for icol in range(ncols):
+				self.setItem(irow, icol, 
+					QTableWidgetItem( str(df.iloc[irow,icol]) ))
+
+#		self.cellChanged[int,int].connect( self.update_from_entry )
+#
+#	def update_from_entry(self, row, col):
+#		try:
+#			self.df.iloc[row, col] = float( self.item(row, col).text() )
+#		except:
+#			pass		
+
+		self.setLayout(layout)
+
+
+
 
 class MyPRLMain(QMainWindow):
 	def __init__(self):
@@ -39,7 +84,17 @@ class MyPRLMain(QMainWindow):
 		self.setWindowTitle("myPRL qt")
 		self.resize(240, 500)
 
-		# calibrations dict
+		self.ptable_window = None 
+
+		self.data = pd.DataFrame(columns=['lam', 
+										  'lam0',
+										  'T',
+										  'T0',
+										  'P',
+										  'Pm',
+										  'calib'])
+
+		# calibrations dict  - to be changed using a calibration class
 		self.calibrations = {'Ruby2020':
 								{'func':Pcalib.Pruby2020,
 								 'Tcor':'Datchi2007',
@@ -72,14 +127,6 @@ class MyPRLMain(QMainWindow):
 						     	 'lam_default':1054,
 						     	 'lam_step':.1}}
 
-		self.data = pd.DataFrame(columns=['lam', 
-										  'lam0',
-										  'T',
-										  'T0',
-										  'P',
-										  'Pm',
-										  'calib'])
-
 ##############################################################################
 
 		# large layout containing all widgets
@@ -102,7 +149,7 @@ class MyPRLMain(QMainWindow):
 		dir_layout.addWidget(self.dir_lineedit,10)
 		dir_layout.addWidget(self.dir_button,1)
 
-		self.plot_button = QPushButton('Plot')
+		self.plot_button = QPushButton('plot')
 
 		# load layout 
 		load_layout = QVBoxLayout()
@@ -162,11 +209,16 @@ class MyPRLMain(QMainWindow):
 		# Pm vs. P sublayout inside pressure layout
 		PmP_layout = QHBoxLayout()
 
-		self.add_PmP_button = QPushButton('add')
-		self.add_PmP_button.setMinimumWidth(50)
-		self.PmP_button = QPushButton('P vs Pm')
+		self.add_button = QPushButton('add')
+		self.add_button.setMinimumWidth(40)
 
-		PmP_layout.addWidget(self.add_PmP_button,1)		
+		self.table_button = QPushButton('table')
+		self.table_button.setMinimumWidth(60)
+
+		self.PmP_button = QPushButton('plot P vs. Pm')
+
+		PmP_layout.addWidget(self.add_button,1)
+		PmP_layout.addWidget(self.table_button,2)		
 		PmP_layout.addWidget(self.PmP_button,5)
 
 		# pressure layout
@@ -244,7 +296,8 @@ class MyPRLMain(QMainWindow):
 
 		self.P_spinbox.valueChanged.connect(self.evaluate)
 
-		self.add_PmP_button.clicked.connect(self.add)
+		self.add_button.clicked.connect(self.add)
+		self.table_button.clicked.connect(self.showtable)
 
 		self.calibration_combo.currentIndexChanged.connect(self.updatecalib)
 
@@ -318,7 +371,6 @@ class MyPRLMain(QMainWindow):
 		self.lam0_spinbox.setValue(calval['lam_default'])
 
 	def add(self, s):
-
 		d_i = {'lam':   self.lam_spinbox.value(),
 		       'lam0':  self.lam0_spinbox.value(),
 		       'T':     self.T_spinbox.value(),
@@ -330,9 +382,20 @@ class MyPRLMain(QMainWindow):
 		self.data = pd.concat([self.data, pd.DataFrame(d_i, 
 									index = [len(self.data)+1])])
 
-app = QApplication(sys.argv)
+		print( self.data )
 
-main = MyPRLMain()
-main.show()
+	def showtable(self, s):
+		if self.ptable_window is None:
+			self.ptable_window = PTableWindow()
+		# show in any case
+		self.ptable_window.show()
 
-app.exec()
+
+if __name__ == '__main__':
+
+	app = QApplication(sys.argv)
+	
+	main = MyPRLMain()
+	main.show()
+	
+	app.exec()
