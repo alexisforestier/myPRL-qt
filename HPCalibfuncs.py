@@ -1,5 +1,3 @@
-from scipy.optimize import minimize
-
 # Shen G., Wang Y., Dewaele A. et al. (2020) High Pres. Res. doi: 10.1080/08957959.2020.1791107
 def Pruby2020(l, l0, T, T0):
 	dT = T - T0
@@ -41,8 +39,6 @@ def PAkahama2006(nu, nu0, T, T0):
 	p = K0 * (dnu/nu0) * (1 + 0.5 * (K0p -1)*dnu/nu0)
 	return p 
 
-def invfuncP(func, p, nu0, T, T0):
-	res = minimize( lambda x: ( func(x, nu0, T, T0) - p )**2, x0=nu0, tol=1e-5)
-	l = res.x[0]
-	
-	return l
+
+if __name__ == '__main__':
+	pass

@@ -23,10 +23,12 @@ from PyQt5.QtWidgets import (QApplication,
 							 QItemDelegate,
 							 QDoubleSpinBox,
 							 QStackedWidget)
-from PyQt5.QtCore import QLocale
+from PyQt5.QtCore import QObject, pyqtSignal, QLocale
 
-# my modules:
-import Pcalib
+# myPRL-qt modules:
+import HPCalibfuncs
+import HPModels
+
 
 
 class MyQSeparator(QFrame):
@@ -36,12 +38,13 @@ class MyQSeparator(QFrame):
 		self.setFrameShadow(QFrame.Sunken)
 
 
-class DFTableWidget(QTableWidget):
-	'''a general widget class for pandas.DataFrames'''
-	def __init__(self, df):
+class HPTableWidget(QTableWidget):
+	''' Qt widget class for HPDataTable objects '''
+
+	def __init__(self, HPDataTable):
 		super().__init__()
 
-		# at init self.df is created
+		
 		self.df = df
 		self.setStyleSheet('font-size: 14px;')
 
@@ -62,29 +65,24 @@ class DFTableWidget(QTableWidget):
 		self.cellChanged[int,int].connect( self.getfromentry )
 
 	def getfromentry(self, row, col):
-
-
-		# HERE THERE IS AN INFINITE RECALL IF ONE USE updatetable!!!!
 		try:
 			self.df.iloc[row, col] = float( self.item(row, col).text() )
 		except:
 			pass
 
-		print(1)
-		return 0
-
 	def updatetable(self, df):
 		if not df.equals(self.df):
-			# populate
+			# df is the new, self.df is the old
 			nrows, ncols = df.shape
-
-	#		self.setColumnCount(ncols)
 			self.setRowCount(nrows)
+			
+			# populate
 			for irow in range(self.rowCount()):
 				for icol in range(self.columnCount()):
 					self.setItem(irow, icol, 
 						QTableWidgetItem( str(df.iloc[irow,icol]) ))
-
+			# updating df
+			self.df = df
 
 class PressureTableWindow(QWidget):
 	def __init__(self, df):
@@ -98,10 +96,6 @@ class PressureTableWindow(QWidget):
 		layout.addWidget(self.table_widget)
 		
 		self.setLayout(layout)
-
-	def updatetable(self, df):
-		 self.table_widget.updatetable(df)
-
 
 class MyPRLMain(QMainWindow):
 	def __init__(self):
@@ -413,11 +407,15 @@ class MyPRLMain(QMainWindow):
 		self.data = pd.concat([self.data, pd.DataFrame(d_i, 
 									index = [len(self.data)+1])])
 
-		self.ptable_window.updatetable(self.data)
+		self.ptable_window.table_widget.updatetable(self.data)
 
+		print( self.data )
 
 	def showtable(self, s):
-		self.ptable_window.show()
+		if self.ptable_window.isVisible():
+			self.ptable_window.hide()
+		else:
+			self.ptable_window.show()
 
 
 if __name__ == '__main__':
