@@ -38,251 +38,206 @@ class MyQSeparator(QFrame):
 		self.setFrameShadow(QFrame.Sunken)
 
 
-class HPTableWidget(QTableWidget):
-	''' Qt widget class for HPDataTable objects '''
+#class HPTableWidget(QTableWidget):
+#	''' Qt widget class for HPDataTable objects '''
+#
+#	def __init__(self, HPDataTable):
+#		super().__init__()
+#
+#		
+#		self.df = df
+#		self.setStyleSheet('font-size: 14px;')
+#
+#		nrows, ncols = self.df.shape
+#
+#		self.setColumnCount(ncols)
+#		self.setRowCount(nrows)
+#
+#		self.setHorizontalHeaderLabels( list(self.df.columns) )
+#		self.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+#
+#		# populate
+#		for irow in range(self.rowCount()):
+#			for icol in range(self.columnCount()):
+#				self.setItem(irow, icol, 
+#					QTableWidgetItem( str(self.df.iloc[irow,icol]) ))
+#
+#		self.cellChanged[int,int].connect( self.getfromentry )
+#
+#	def getfromentry(self, row, col):
+#		try:
+#			self.df.iloc[row, col] = float( self.item(row, col).text() )
+#		except:
+#			pass
+#
+#	def updatetable(self, df):
+#		if not df.equals(self.df):
+#			# df is the new, self.df is the old
+#			nrows, ncols = df.shape
+#			self.setRowCount(nrows)
+#			
+#			# populate
+#			for irow in range(self.rowCount()):
+#				for icol in range(self.columnCount()):
+#					self.setItem(irow, icol, 
+#						QTableWidgetItem( str(df.iloc[irow,icol]) ))
+#			# updating df
+#			self.df = df
 
-	def __init__(self, HPDataTable):
-		super().__init__()
-
-		
-		self.df = df
-		self.setStyleSheet('font-size: 14px;')
-
-		nrows, ncols = self.df.shape
-
-		self.setColumnCount(ncols)
-		self.setRowCount(nrows)
-
-		self.setHorizontalHeaderLabels( list(self.df.columns) )
-		self.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-
-		# populate
-		for irow in range(self.rowCount()):
-			for icol in range(self.columnCount()):
-				self.setItem(irow, icol, 
-					QTableWidgetItem( str(self.df.iloc[irow,icol]) ))
-
-		self.cellChanged[int,int].connect( self.getfromentry )
-
-	def getfromentry(self, row, col):
-		try:
-			self.df.iloc[row, col] = float( self.item(row, col).text() )
-		except:
-			pass
-
-	def updatetable(self, df):
-		if not df.equals(self.df):
-			# df is the new, self.df is the old
-			nrows, ncols = df.shape
-			self.setRowCount(nrows)
-			
-			# populate
-			for irow in range(self.rowCount()):
-				for icol in range(self.columnCount()):
-					self.setItem(irow, icol, 
-						QTableWidgetItem( str(df.iloc[irow,icol]) ))
-			# updating df
-			self.df = df
-
-class PressureTableWindow(QWidget):
-	def __init__(self, df):
-		super().__init__()
-
-		self.resize(600,400)
-
-		layout = QVBoxLayout()
-		
-		self.table_widget = DFTableWidget(df)
-		layout.addWidget(self.table_widget)
-		
-		self.setLayout(layout)
+#class PressureTableWindow(QWidget):
+#	def __init__(self, df):
+#		super().__init__()
+#
+#		self.resize(600,400)
+#
+#		layout = QVBoxLayout()
+#		
+#		self.table_widget = DFTableWidget(df)
+#		layout.addWidget(self.table_widget)
+#		
+#		self.setLayout(layout)
 
 class MyPRLMain(QMainWindow):
 	def __init__(self):
 		super().__init__()
 
+		Ruby2020 = HPModels.HPCalibration(name = 'Ruby2020',
+							     func = HPCalibfuncs.Pruby2020,
+							     Tcor_name='Datchi 2007',
+							     xname = 'lambda',
+							     xunit = 'nm',
+							     x0default = 694.28,
+							     xstep = .01,
+							     color = 'lightcoral')
+
+		SamariumDatchi = HPModels.HPCalibration(name = 'Samarium Borate Datchi 1997',
+							     	   func = HPCalibfuncs.PsamDatchi1997,
+							     	   Tcor_name='NA',
+							     	   xname = 'lambda',
+							     	   xunit = 'nm',
+							     	   x0default = 685.41,
+							     	   xstep = .01,
+							     	   color = 'moccasin')
+
+		Akahama2006 = HPModels.HPCalibration(name = 'Diamond Raman Edge Akahama 2006',
+							     	func = HPCalibfuncs.PAkahama2006,
+							     	Tcor_name='NA',
+							     	xname = 'nu',
+							     	xunit = 'cm-1',
+							     	x0default = 1333,
+							     	xstep = .1,
+							     	color = 'darkgrey')
+
+		cBNDatchi = HPModels.HPCalibration(name = 'cBN Raman Datchi 2007',
+							      func = HPCalibfuncs.PcBN,
+							      Tcor_name='Datchi 2007',
+							      xname = 'nu',
+							      xunit = 'cm-1',
+							      x0default = 1054,
+							      xstep = .1,
+							      color = 'lightblue')
+
+		# put all calibrations here
+		# keys are names
+		self.calibrations = {'Ruby2020': Ruby2020, 
+						     'Samarium Borate Datchi 1997': SamariumDatchi,
+						     'Diamond Raman Edge Akahama 2006': Akahama2006,
+						     'cBN Raman Datchi 2007': cBNDatchi}
+
+		# this will be our initial state
+		self.buffer = HPModels.HPData(Pm = 0, 
+	     		  					P = 0,
+	      		  					x = 694.28,
+	       	 	  					T = 298,
+	      		  					x0 = 694.28,
+	      		  					T0 = 298, 
+	      		  					calib = self.calibrations['Ruby2020'],
+	      		  					file = 'No')
+
+
+##############################################################################
+
 		# dot as decimal separator in the whole app
 		self.setLocale(QLocale(QLocale.C))
 
-		self.setWindowTitle("myPRL qt")
-		self.resize(240, 500)
-
-		self.data = pd.DataFrame(columns=['lam', 
-										  'lam0',
-										  'T',
-										  'T0',
-										  'P',
-										  'Pm',
-										  'calib'])
-
-		self.ptable_window = PressureTableWindow(self.data) 
-
-		# calibrations dict  - to be changed using a calibration class?
-		self.calibrations = {'Ruby2020':
-								{'func':Pcalib.Pruby2020,
-								 'Tcor':'Datchi2007',
-								 'col':'lightcoral',
-								 'unit':'nm',
-								 'lam_default':694.28,
-								 'lam_step':.01},
-
-						     'Samarium Borate Datchi1997':
-						     	{'func':Pcalib.PsamDatchi1997,
-						     	 'Tcor':'NA',
-						     	 'col':'moccasin',
-						     	 'unit':'nm',
-						     	 'lam_default':685.41,
-						     	 'lam_step':.01},
-
-						     'Diamond Raman Edge Akahama2006':
-						     	{'func':Pcalib.PAkahama2006,
-						     	 'Tcor':'NA',
-						     	 'col':'darkgrey',
-						     	 'unit':'cm-1',
-						     	 'lam_default':1333,
-						     	 'lam_step':.1},
-
-						     'cBN Raman Datchi2007': 
-						     	{'func':Pcalib.PcBN,
-						     	 'Tcor':'Datchi2007',
-						     	 'col':'lightblue',
-						     	 'unit':'cm-1',
-						     	 'lam_default':1054,
-						     	 'lam_step':.1}}
-
-##############################################################################
+		self.setWindowTitle("myPRL-qt")
+		self.resize(240, 250)
 
 		# large layout containing all widgets
 		layout = QVBoxLayout()
 
-##############################################################################
-
-		self.load_button = QPushButton('load')
-		self.load_last_button = QPushButton('load last')
-
-		# directory layout inside load layout
-		dir_label = QLabel('directory:')
-		self.dir_lineedit = QLineEdit()
-		self.dir_lineedit.setMinimumWidth(60)
-		self.dir_button = QPushButton('Browse')
-		self.dir_button.setMinimumWidth(60)
-
-		dir_layout = QHBoxLayout()
-		dir_layout.addWidget(dir_label,1)
-		dir_layout.addWidget(self.dir_lineedit,10)
-		dir_layout.addWidget(self.dir_button,1)
-
-		self.plot_button = QPushButton('plot')
-
-		# load layout 
-		load_layout = QVBoxLayout()
-
-		load_layout.addWidget(self.load_button)
-		load_layout.addWidget(self.load_last_button)
-		load_layout.addLayout(dir_layout)
-		load_layout.addWidget(self.plot_button)
-
-##############################################################################
-
-		self.lam_spinbox = QDoubleSpinBox()
-		self.lam0_spinbox = QDoubleSpinBox()
-		self.T_spinbox = QDoubleSpinBox()
-		self.T0_spinbox = QDoubleSpinBox()
-
-		self.lam_spinbox.setDecimals(2)
-		self.lam_spinbox.setRange(-np.inf, +np.inf)
-		self.lam0_spinbox.setDecimals(2)
-		self.lam0_spinbox.setRange(-np.inf, +np.inf)
-
-		self.T_spinbox.setDecimals(0)
-		self.T_spinbox.setRange(-np.inf, +np.inf)
-		self.T_spinbox.setSingleStep(1)
-		self.T0_spinbox.setDecimals(0)
-		self.T0_spinbox.setRange(-np.inf, +np.inf)
-		self.T0_spinbox.setSingleStep(1)
-		
-		self.lam_label = QLabel('lambda (nm)')
-		self.lam0_label = QLabel('lambda0 (nm)')
-
-		# data form
-		data_form = QFormLayout()
-		data_form.addRow(self.lam_label, self.lam_spinbox)
-		data_form.addRow('T (K)', self.T_spinbox)
-		data_form.addRow(self.lam0_label, self.lam0_spinbox)
-		data_form.addRow('T0 (K)', self.T0_spinbox)
-
-##############################################################################
-
-
-		self.P_spinbox = QDoubleSpinBox()
 		self.Pm_spinbox = QDoubleSpinBox()
-
-		pressure_form = QFormLayout()
-		pressure_form.addRow('P (GPa)', self.P_spinbox)
-		pressure_form.addRow('Pm (bar)', self.Pm_spinbox)
-	
-		self.P_spinbox.setDecimals(2)
-		self.P_spinbox.setRange(-np.inf, np.inf)
-		self.P_spinbox.setSingleStep(.1)
-
+		self.Pm_spinbox.setObjectName('Pm_spinbox')
 		self.Pm_spinbox.setDecimals(2)
 		self.Pm_spinbox.setRange(-np.inf, np.inf)
 		self.Pm_spinbox.setSingleStep(.1)
 
-		# Pm vs. P sublayout inside pressure layout
-		PmP_layout = QHBoxLayout()
+		self.P_spinbox = QDoubleSpinBox()
+		self.P_spinbox.setObjectName('P_spinbox')
+		self.P_spinbox.setDecimals(2)
+		self.P_spinbox.setRange(-np.inf, np.inf)
+		self.P_spinbox.setSingleStep(.1)
 
-		self.add_button = QPushButton('add')
-		self.add_button.setMinimumWidth(40)
+		self.x_spinbox = QDoubleSpinBox()
+		self.x_spinbox.setObjectName('x_spinbox')
+		self.x_spinbox.setDecimals(2)
+		self.x_spinbox.setRange(-np.inf, +np.inf)
 
-		self.table_button = QPushButton('table')
-		self.table_button.setMinimumWidth(60)
+		self.T_spinbox = QDoubleSpinBox()
+		self.T_spinbox.setObjectName('T_spinbox')
+		self.T_spinbox.setDecimals(0)
+		self.T_spinbox.setRange(-np.inf, +np.inf)
+		self.T_spinbox.setSingleStep(1)
 
-		self.PmP_button = QPushButton('plot P vs. Pm')
+		self.x0_spinbox = QDoubleSpinBox()
+		self.x0_spinbox.setObjectName('x0_spinbox')
+		self.x0_spinbox.setDecimals(2)
+		self.x0_spinbox.setRange(-np.inf, +np.inf)
 
-		PmP_layout.addWidget(self.add_button,1)
-		PmP_layout.addWidget(self.table_button,2)		
-		PmP_layout.addWidget(self.PmP_button,5)
+		self.T0_spinbox = QDoubleSpinBox()
+		self.T0_spinbox.setObjectName('T0_spinbox')
+		self.T0_spinbox.setDecimals(0)
+		self.T0_spinbox.setRange(-np.inf, +np.inf)
+		self.T0_spinbox.setSingleStep(1)
 
-		# pressure layout
-		pressure_layout = QVBoxLayout()
-		pressure_layout.addLayout(pressure_form)
-		pressure_layout.addLayout(PmP_layout)
-
-##############################################################################
 
 		self.calibration_combo = QComboBox()
-		temperaturecor_Label0 = QLabel('T correction:')
-		self.temperaturecor_Label = QLabel('NA')
-
+		self.calibration_combo.setObjectName('calibration_combo')
 		self.calibration_combo.setMinimumWidth(100)
-
 		self.calibration_combo.addItems( self.calibrations.keys() )
 		
-		for ind in range(len(self.calibrations.keys())):
-			k, v = list( self.calibrations.items() )[ind]
+		for k, v in self.calibrations.items():
+			ind = self.calibration_combo.findText( k )
 
 			self.calibration_combo.model().item(ind).setBackground(QColor(
-				v['col']))
+				v.color))
 
-		# scales layout
-		scales_layout = QGridLayout()
-		scales_layout.setColumnStretch(0, 1)
-		scales_layout.setColumnStretch(1, 10)
-		scales_layout.addWidget(QLabel("Calibration:"), 0, 0)
-		scales_layout.addWidget(self.calibration_combo, 0, 1)
-		scales_layout.addWidget(temperaturecor_Label0,  1, 0)
-		scales_layout.addWidget(self.temperaturecor_Label,  1, 1)
+		self.x_label = QLabel('lambda (nm)')
+		self.x0_label = QLabel('lambda0 (nm)')
 
-##############################################################################
-	
-		layout.addLayout(load_layout)
+		# pressure form
+		pressure_form = QFormLayout()
+		pressure_form.addRow('Pm (bar)', self.Pm_spinbox)
+		pressure_form.addRow('P (GPa)', self.P_spinbox)
 
-		layout.addStretch()
-		layout.addWidget(MyQSeparator())
-		layout.addStretch()
 
-		layout.addLayout(scales_layout)
+		# data form
+		data_form = QFormLayout()
+		data_form.addRow(self.x_label, self.x_spinbox)
+		data_form.addRow('T (K)', self.T_spinbox)
+		data_form.addRow(self.x0_label, self.x0_spinbox)
+		data_form.addRow('T0 (K)', self.T0_spinbox)
+
+
+		self.Tcor_Label = QLabel('NA')
+
+		calibration_form = QFormLayout()
+		calibration_form.addRow(QLabel('Calibration: '), self.calibration_combo)
+		calibration_form.addRow(QLabel('T correction: '), self.Tcor_Label)
+
+
+
+		layout.addLayout(pressure_form)
 
 		layout.addStretch()
 		layout.addWidget(MyQSeparator())
@@ -294,7 +249,9 @@ class MyPRLMain(QMainWindow):
 		layout.addWidget(MyQSeparator())
 		layout.addStretch()
 		
-		layout.addLayout(pressure_layout)
+		layout.addLayout(calibration_form)
+
+
 
 		# vcontainer is the central widget for the MainWindow
 		vcontainer = QWidget()
@@ -302,121 +259,94 @@ class MyPRLMain(QMainWindow):
 		self.setCentralWidget(vcontainer)	
 		#self.setLayout(layout) #only if inherits from QWidget/not QMainWindow
 
+		# set some initial values 
+		self.Pm_spinbox.setValue(self.buffer.Pm)
+		self.P_spinbox.setValue(self.buffer.P)
+		self.x_spinbox.setValue(self.buffer.x)
+		self.T_spinbox.setValue(self.buffer.T)
+		self.x0_spinbox.setValue(self.buffer.x0)
+		self.T0_spinbox.setValue(self.buffer.T0)
+		self.calibration_combo.setCurrentText(self.buffer.calib.name) 
+	#	self.file
 
-##############################################################################
-		
-		# init some values:
-		self.lam_spinbox.setValue(694.28)
-		# lam0 is done through update
-		self.T_spinbox.setValue(298)
-		self.T0_spinbox.setValue(298)
-		
-##############################################################################
 
 		# Connects
-		self.lam_spinbox.valueChanged.connect(self.evaluate)
-		self.lam0_spinbox.valueChanged.connect(self.evaluate)
-		self.T_spinbox.valueChanged.connect(self.evaluate)
-		self.T0_spinbox.valueChanged.connect(self.evaluate)
-
-		self.P_spinbox.valueChanged.connect(self.evaluate)
-
-		self.add_button.clicked.connect(self.add)
-		self.table_button.clicked.connect(self.showtable)
 
 		self.calibration_combo.currentIndexChanged.connect(self.updatecalib)
 
-		# evaluate is called through updatecalib through valuechanged of lam0
-		self.updatecalib(self)
+		self.Pm_spinbox.valueChanged.connect(self.update)
+		self.P_spinbox.valueChanged.connect(self.update)
 
-	def evaluate(self, s):
-		if not self.P_spinbox.hasFocus():
+		self.x_spinbox.valueChanged.connect(self.update)
+		self.x0_spinbox.valueChanged.connect(self.update)
+		self.T_spinbox.valueChanged.connect(self.update)
+		self.T0_spinbox.valueChanged.connect(self.update)
 
-			lam = self.lam_spinbox.value()
-			lam0  = self.lam0_spinbox.value()
-			T = self.T_spinbox.value()
-			T0 = self.T0_spinbox.value()
-			cal = self.calibration_combo.currentText()
-			calfunc = self.calibrations[cal]['func']
 
+#		self.buffer.changed.connect(self.testreceive)
+
+
+		# 1 cause it needs a signal
+		self.updatecalib(1)	
+		# for some reason updatecalib does not call update at __init__
+		self.update(1)
+
+#	def testreceive(self, s):
+#		print(s)
+
+		# update is called two time, not very good but working
+	def update(self, s):
+
+		if self.P_spinbox.hasFocus():
+			self.buffer.P = self.P_spinbox.value()
 			try:
-
-				P = calfunc(lam, lam0, T, T0)
-
-				self.P_spinbox.setValue(P)
-				self.P_spinbox.setStyleSheet("background: #c6fcc5;")
-			
-			except:	
+				self.buffer.invcalcP()
+				self.x_spinbox.setValue(self.buffer.x)
 				
-				self.P_spinbox.setStyleSheet("background: #ff7575;")
-
-		else: 
-			# inverse evaluation
-			P = self.P_spinbox.value()
-			lam0  = self.lam0_spinbox.value()
-			T = self.T_spinbox.value()
-			T0 = self.T0_spinbox.value()
-			cal = self.calibration_combo.currentText()
-			calfunc = self.calibrations[cal]['func']
-
-			try:
-				
-				lam = Pcalib.invfuncP(calfunc, P, lam0, T, T0)
-	
-				self.lam_spinbox.setValue(lam)
-				self.lam_spinbox.setStyleSheet("background: #c6fcc5;")
-			
+				self.x_spinbox.setStyleSheet("background: #c6fcc5;") # green
 			except:
+				self.x_spinbox.setStyleSheet("background: #ff7575;") # red
+
+		else:
+			# read everything stupidly
+			self.buffer.Pm = self.Pm_spinbox.value()
+			self.buffer.x = self.x_spinbox.value()
+			self.buffer.T = self.T_spinbox.value()
+			self.buffer.x0 = self.x0_spinbox.value()
+			self.buffer.T0 = self.T0_spinbox.value()
+
+			try:
+				self.buffer.calcP()
+				self.P_spinbox.setValue(self.buffer.P)
 				
-				self.lam_spinbox.setStyleSheet("background: #ff7575;")
+				self.P_spinbox.setStyleSheet("background: #c6fcc5;") # green
+			except:
+				self.P_spinbox.setStyleSheet("background: #ff7575;") # red
+			
+
 
 	def updatecalib(self, s):
 
-		self.temperaturecor_Label.setText(
-			self.calibrations[self.calibration_combo.currentText()]['Tcor'])
+		self.buffer.calib = self.calibrations[ self.calibration_combo.currentText() ]
+		newind = self.calibration_combo.currentIndex()
 
-		col1 = self.calibration_combo.model().item(
-		   self.calibration_combo.currentIndex()).background().color().getRgb() 
+		self.Tcor_Label.setText( self.buffer.calib.Tcor_name )
+
+		col1 = self.calibration_combo.model()\
+							.item(newind).background().color().getRgb() 
 		self.calibration_combo.setStyleSheet("background-color: rgba{};\
 					selection-background-color: k;".format(col1))
 
-		calval = self.calibrations[self.calibration_combo.currentText()]
+		self.x_label.setText('{} ({})'.format(self.buffer.calib.xname, 
+													self.buffer.calib.xunit))
+		self.x0_label.setText('{}0 ({})'.format(self.buffer.calib.xname, 
+													self.buffer.calib.xunit))
 
-		if calval['unit'] == 'nm':
-			self.lam_label.setText('lambda (nm)')
-			self.lam0_label.setText('lambda0 (nm)')
+		self.x_spinbox.setSingleStep(self.buffer.calib.xstep)
+		self.x0_spinbox.setSingleStep(self.buffer.calib.xstep)
 
-		elif calval['unit'] == 'cm-1':
-			self.lam_label.setText('nu (cm-1)')
-			self.lam0_label.setText('nu0 (cm-1)')
-
-		self.lam_spinbox.setSingleStep(calval['lam_step'])
-		self.lam0_spinbox.setSingleStep(calval['lam_step'])
-
-		self.lam0_spinbox.setValue(calval['lam_default'])
-
-	def add(self, s):
-		d_i = {'lam':   self.lam_spinbox.value(),
-		       'lam0':  self.lam0_spinbox.value(),
-		       'T':     self.T_spinbox.value(),
-		       'T0':    self.T0_spinbox.value(),
-		       'P':     self.P_spinbox.value(),
-		       'Pm':    self.Pm_spinbox.value(),
-		       'calib': self.calibration_combo.currentText()}
-
-		self.data = pd.concat([self.data, pd.DataFrame(d_i, 
-									index = [len(self.data)+1])])
-
-		self.ptable_window.table_widget.updatetable(self.data)
-
-		print( self.data )
-
-	def showtable(self, s):
-		if self.ptable_window.isVisible():
-			self.ptable_window.hide()
-		else:
-			self.ptable_window.show()
-
+		# note that this should call update() but it does not at __init__ !!
+		self.x0_spinbox.setValue(self.buffer.calib.x0default)
 
 if __name__ == '__main__':
 

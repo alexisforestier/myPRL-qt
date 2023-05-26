@@ -1,5 +1,5 @@
 # Shen G., Wang Y., Dewaele A. et al. (2020) High Pres. Res. doi: 10.1080/08957959.2020.1791107
-def Pruby2020(l, l0, T, T0):
+def Pruby2020(l, T, l0, T0):
 	dT = T - T0
 	dlcorr = 0.00746 * dT - 3.01e-6 * dT**2 + 8.76e-9 * dT**3  # Datchi HPR 2007
 	dl = (l - dlcorr) - l0
@@ -8,7 +8,7 @@ def Pruby2020(l, l0, T, T0):
 	return P
 
 #  F. Datchi, High Pressure Research, 27:4, 447-463, DOI: 10.1080/08957950701659593 
-def PsamDatchi1997(l, l0, T, T0):
+def PsamDatchi1997(l, T, l0, T0):
     dT = T - T0
 #    dlcorr = -8.7e-5 * dT + 4.62e-6 * dT**2 -2.38e-9 * dT**3    # problem here !? (Datchi HPR 2007)
 #    if T >= 500:
@@ -21,7 +21,7 @@ def PsamDatchi1997(l, l0, T, T0):
     return P
 
 #  F. Datchi, High Pressure Research, 27:4, 447-463, DOI: 10.1080/08957950701659593 
-def PcBN(nu, nu0, T, T0):
+def PcBN(nu, T, nu0, T0):
 	# find nu(p = 0 GPa, T = 0 K)
 	nu00 = nu0 + 0.0091 * T0 + 1.54e-5 * T0**2
 
@@ -32,7 +32,7 @@ def PcBN(nu, nu0, T, T0):
 	return P
 
 # AKAHAMA, KAWAMURA, JOURNAL OF APPLIED PHYSICS 100, 043516 2006
-def PAkahama2006(nu, nu0, T, T0):
+def PAkahama2006(nu, T, nu0, T0):
 	K0  = 547 # GPa
 	K0p = 3.75
 	dnu = nu - nu0 
