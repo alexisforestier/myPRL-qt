@@ -3,7 +3,8 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 from PyQt5.QtGui import (QColor, 
-						QDoubleValidator)
+						QDoubleValidator,
+						QKeySequence)
 from PyQt5.QtWidgets import (QApplication, 
 							 QWidget, 
 							 QMainWindow, 
@@ -22,8 +23,13 @@ from PyQt5.QtWidgets import (QApplication,
 							 QHeaderView,
 							 QItemDelegate,
 							 QDoubleSpinBox,
-							 QStackedWidget)
-from PyQt5.QtCore import QObject, pyqtSignal, QLocale
+							 QStackedWidget,
+							 QDesktopWidget,
+							 QFileDialog,
+							 QShortcut)
+from PyQt5.QtCore import (QObject, 
+						  pyqtSignal, 
+						  QLocale)
 
 # myPRL-qt modules:
 import myPRLCalibfuncs
@@ -46,7 +52,7 @@ class HPTableWidget(QTableWidget):
 
 		self.data = HPDataTable
 
-		self.setStyleSheet('font-size: 13px;')
+		self.setStyleSheet('font-size: 12px;')
 
 		nrows, ncols = self.data.df.shape
 
@@ -107,20 +113,85 @@ class HPTableWidget(QTableWidget):
 
 
 class HPTableWindow(QWidget):
-	def __init__(self, df):
+	def __init__(self, HPDataTable_):
 		super().__init__()
+
+		self.data = HPDataTable_
 
 		self.setWindowTitle('myPRL-qt table')
 
 		self.resize(500,400)
 
+		centerPoint = QDesktopWidget().availableGeometry().center()
+		thePosition = (centerPoint.x() + 200, centerPoint.y() - 100)
+		self.move(*thePosition)
+
 		layout = QVBoxLayout()
 		
-		self.table_widget = HPTableWidget(df)
+		self.table_widget = HPTableWidget(HPDataTable_)
 		layout.addWidget(self.table_widget)
 		
+		table_actions_layout = QHBoxLayout()
+
+		self.table_save_csv_button = QPushButton('Save data to csv')
+		self.table_load_csv_button = QPushButton('Load data from csv')
+		table_actions_layout.addWidget(self.table_save_csv_button)
+		table_actions_layout.addWidget(self.table_load_csv_button)
+
+		layout.addLayout(table_actions_layout)
+
 		self.setLayout(layout)
 
+		self.table_save_csv_button.clicked.connect(self.save_data_to_csv)
+		self.table_load_csv_button.clicked.connect(self.load_data_from_csv)
+
+		save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
+		load_shortcut = QShortcut(QKeySequence("Ctrl+O"), self)
+		save_shortcut.activated.connect(self.save_data_to_csv)
+		load_shortcut.activated.connect(self.load_data_from_csv)
+
+
+
+
+	def save_data_to_csv(self):
+		file = self.get_csv_file_dialog()
+
+		# I NEED TO MANAGE THE CREATION OF THE FILE IF IT DOES NOT EXIST
+
+		if file:
+			self.data.df.to_csv(file, 
+								sep='\t', 
+								decimal='.', 
+								header=True,
+								index=False)
+
+	def load_data_from_csv(self):
+		file = self.get_csv_file_dialog()
+		if file:
+
+			df_ = pd.read_csv(file, 
+								sep='\t', 
+								decimal='.', 
+								header=[0],
+								index_col=None)
+			print(df_)
+			
+			# I WILL NEED HERE TO CONSTRUCT AN HPDATATABLE VIA DF USING MAIN WINDOW CALIBRATIONS LIST
+			# I THUS NEED TO WRITE A METHOD TO RECONSTRUCT AN HPDATATABLE OBJECT FROM THE CORRESPONDING DF
+
+
+
+
+	def get_csv_file_dialog(self):
+
+		options = QFileDialog.Options()
+		options |= QFileDialog.DontUseNativeDialog
+		fileName, _ = QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "",
+												 "CSV Files (*.csv);;All Files (*)", options=options)
+		if fileName:
+			return fileName
+		else:
+			return None
 
 class MyPRLMain(QMainWindow):
 	def __init__(self):
@@ -188,7 +259,7 @@ class MyPRLMain(QMainWindow):
 		self.setLocale(QLocale(QLocale.C))
 
 		self.setWindowTitle("myPRL-qt")
-		self.resize(240, 250)
+		self.resize(240, 325)
 
 		# large layout containing all widgets
 		layout = QVBoxLayout()
@@ -201,13 +272,13 @@ class MyPRLMain(QMainWindow):
 
 		self.P_spinbox = QDoubleSpinBox()
 		self.P_spinbox.setObjectName('P_spinbox')
-		self.P_spinbox.setDecimals(2)
+		self.P_spinbox.setDecimals(3)
 		self.P_spinbox.setRange(-np.inf, np.inf)
 		self.P_spinbox.setSingleStep(.1)
 
 		self.x_spinbox = QDoubleSpinBox()
 		self.x_spinbox.setObjectName('x_spinbox')
-		self.x_spinbox.setDecimals(2)
+		self.x_spinbox.setDecimals(3)
 		self.x_spinbox.setRange(-np.inf, +np.inf)
 
 		self.T_spinbox = QDoubleSpinBox()
@@ -218,7 +289,7 @@ class MyPRLMain(QMainWindow):
 
 		self.x0_spinbox = QDoubleSpinBox()
 		self.x0_spinbox.setObjectName('x0_spinbox')
-		self.x0_spinbox.setDecimals(2)
+		self.x0_spinbox.setDecimals(3)
 		self.x0_spinbox.setRange(-np.inf, +np.inf)
 
 		self.T0_spinbox = QDoubleSpinBox()
@@ -349,7 +420,7 @@ class MyPRLMain(QMainWindow):
 
 	def add_to_data(self):
 		self.data.add(self.buffer)
-		print(self.data)
+	#	print(self.data)
 		self.DataTableWindow.table_widget.updatetable(self.data)
 
 	def removelast(self):
