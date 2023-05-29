@@ -26,8 +26,8 @@ from PyQt5.QtWidgets import (QApplication,
 from PyQt5.QtCore import QObject, pyqtSignal, QLocale
 
 # myPRL-qt modules:
-import HPCalibfuncs
-import HPModels
+import myPRLCalibfuncs
+import myPRLModels
 
 
 
@@ -38,71 +38,96 @@ class MyQSeparator(QFrame):
 		self.setFrameShadow(QFrame.Sunken)
 
 
-#class HPTableWidget(QTableWidget):
-#	''' Qt widget class for HPDataTable objects '''
-#
-#	def __init__(self, HPDataTable):
-#		super().__init__()
-#
-#		
-#		self.df = df
-#		self.setStyleSheet('font-size: 14px;')
-#
-#		nrows, ncols = self.df.shape
-#
-#		self.setColumnCount(ncols)
-#		self.setRowCount(nrows)
-#
-#		self.setHorizontalHeaderLabels( list(self.df.columns) )
-#		self.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-#
-#		# populate
-#		for irow in range(self.rowCount()):
-#			for icol in range(self.columnCount()):
-#				self.setItem(irow, icol, 
-#					QTableWidgetItem( str(self.df.iloc[irow,icol]) ))
-#
-#		self.cellChanged[int,int].connect( self.getfromentry )
-#
-#	def getfromentry(self, row, col):
-#		try:
-#			self.df.iloc[row, col] = float( self.item(row, col).text() )
-#		except:
-#			pass
-#
-#	def updatetable(self, df):
-#		if not df.equals(self.df):
-#			# df is the new, self.df is the old
-#			nrows, ncols = df.shape
-#			self.setRowCount(nrows)
-#			
-#			# populate
-#			for irow in range(self.rowCount()):
-#				for icol in range(self.columnCount()):
-#					self.setItem(irow, icol, 
-#						QTableWidgetItem( str(df.iloc[irow,icol]) ))
-#			# updating df
-#			self.df = df
+class HPTableWidget(QTableWidget):
+	''' Qt widget class for HPDataTable objects '''
 
-#class PressureTableWindow(QWidget):
-#	def __init__(self, df):
-#		super().__init__()
-#
-#		self.resize(600,400)
-#
-#		layout = QVBoxLayout()
-#		
-#		self.table_widget = DFTableWidget(df)
-#		layout.addWidget(self.table_widget)
-#		
-#		self.setLayout(layout)
+	def __init__(self, HPDataTable):
+		super().__init__()
+
+		self.data = HPDataTable
+
+		self.setStyleSheet('font-size: 13px;')
+
+		nrows, ncols = self.data.df.shape
+
+		self.setColumnCount(ncols)
+		self.setRowCount(nrows)
+
+		self.setHorizontalHeaderLabels( list(self.data.df.columns) )
+		self.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+		self.cellChanged[int,int].connect( self.getfromentry )
+
+	def getfromentry(self, row, col):
+		# takes care of types
+		try:
+			newval = float( self.item(row, col).text() )
+		except ValueError:
+			newval =  self.item(row, col).text()
+	
+		key = self.data.df.columns[col]
+	
+		if key != 'calib':
+			self.data.setitemval(row, key, newval)
+
+			if key == 'P':
+				self.data[row].invcalcP()
+			elif key in ['x', 'x0', 'T', 'T0'] :
+				self.data[row].calcP()
+		
+			self.updatetable(self.data)
+
+		else: 
+			# I do not accept any calib change (for now a least)
+			pass
+
+
+	def updatetable(self, new):
+
+		nrows, ncols = self.data.df.shape
+		self.setRowCount(nrows)
+
+		# Absolutely necessary to disconnect otherwise infinite loop
+		self.cellChanged[int,int].disconnect()
+
+		for irow in range(self.rowCount()):
+			for icol in range(self.columnCount()):
+
+				# print round() values in table
+				v = self.data.df.iloc[irow,icol]
+				if isinstance(v, (int, float)):
+					s = str( round(v, 3) )
+				else:
+					s = str( v )
+
+				self.setItem(irow, icol, QTableWidgetItem(s))
+
+		self.cellChanged[int,int].connect( self.getfromentry )
+		
+
+
+class HPTableWindow(QWidget):
+	def __init__(self, df):
+		super().__init__()
+
+		self.setWindowTitle('myPRL-qt table')
+
+		self.resize(500,400)
+
+		layout = QVBoxLayout()
+		
+		self.table_widget = HPTableWidget(df)
+		layout.addWidget(self.table_widget)
+		
+		self.setLayout(layout)
+
 
 class MyPRLMain(QMainWindow):
 	def __init__(self):
 		super().__init__()
 
-		Ruby2020 = HPModels.HPCalibration(name = 'Ruby2020',
-							     func = HPCalibfuncs.Pruby2020,
+		Ruby2020 = myPRLModels.HPCalibration(name = 'Ruby2020',
+							     func = myPRLCalibfuncs.Pruby2020,
 							     Tcor_name='Datchi 2007',
 							     xname = 'lambda',
 							     xunit = 'nm',
@@ -110,8 +135,8 @@ class MyPRLMain(QMainWindow):
 							     xstep = .01,
 							     color = 'lightcoral')
 
-		SamariumDatchi = HPModels.HPCalibration(name = 'Samarium Borate Datchi 1997',
-							     	   func = HPCalibfuncs.PsamDatchi1997,
+		SamariumDatchi = myPRLModels.HPCalibration(name = 'Samarium Borate Datchi 1997',
+							     	   func = myPRLCalibfuncs.PsamDatchi1997,
 							     	   Tcor_name='NA',
 							     	   xname = 'lambda',
 							     	   xunit = 'nm',
@@ -119,8 +144,8 @@ class MyPRLMain(QMainWindow):
 							     	   xstep = .01,
 							     	   color = 'moccasin')
 
-		Akahama2006 = HPModels.HPCalibration(name = 'Diamond Raman Edge Akahama 2006',
-							     	func = HPCalibfuncs.PAkahama2006,
+		Akahama2006 = myPRLModels.HPCalibration(name = 'Diamond Raman Edge Akahama 2006',
+							     	func = myPRLCalibfuncs.PAkahama2006,
 							     	Tcor_name='NA',
 							     	xname = 'nu',
 							     	xunit = 'cm-1',
@@ -128,8 +153,8 @@ class MyPRLMain(QMainWindow):
 							     	xstep = .1,
 							     	color = 'darkgrey')
 
-		cBNDatchi = HPModels.HPCalibration(name = 'cBN Raman Datchi 2007',
-							      func = HPCalibfuncs.PcBN,
+		cBNDatchi = myPRLModels.HPCalibration(name = 'cBN Raman Datchi 2007',
+							      func = myPRLCalibfuncs.PcBN,
 							      Tcor_name='Datchi 2007',
 							      xname = 'nu',
 							      xunit = 'cm-1',
@@ -145,7 +170,7 @@ class MyPRLMain(QMainWindow):
 						     'cBN Raman Datchi 2007': cBNDatchi}
 
 		# this will be our initial state
-		self.buffer = HPModels.HPData(Pm = 0, 
+		self.buffer = myPRLModels.HPData(Pm = 0, 
 	     		  					P = 0,
 	      		  					x = 694.28,
 	       	 	  					T = 298,
@@ -154,6 +179,8 @@ class MyPRLMain(QMainWindow):
 	      		  					calib = self.calibrations['Ruby2020'],
 	      		  					file = 'No')
 
+		self.data = myPRLModels.HPDataTable()
+		self.DataTableWindow = HPTableWindow(self.data)
 
 ##############################################################################
 
@@ -236,6 +263,24 @@ class MyPRLMain(QMainWindow):
 		calibration_form.addRow(QLabel('T correction: '), self.Tcor_Label)
 
 
+		self.add_button = QPushButton('+')
+		self.add_button.setMinimumWidth(25)
+
+		self.removelast_button = QPushButton('-')
+		self.removelast_button.setMinimumWidth(25)
+
+		self.table_button = QPushButton('Table')
+		self.table_button.setMinimumWidth(70)
+
+		self.PmPplot_button = QPushButton('P vs Pm')
+		self.PmPplot_button.setMinimumWidth(70)
+
+		actions_form = QHBoxLayout()
+
+		actions_form.addWidget(self.add_button)
+		actions_form.addWidget(self.removelast_button)
+		actions_form.addWidget(self.table_button)
+		actions_form.addWidget(self.PmPplot_button)
 
 		layout.addLayout(pressure_form)
 
@@ -251,6 +296,11 @@ class MyPRLMain(QMainWindow):
 		
 		layout.addLayout(calibration_form)
 
+		layout.addStretch()
+		layout.addWidget(MyQSeparator())
+		layout.addStretch()
+
+		layout.addLayout(actions_form)
 
 
 		# vcontainer is the central widget for the MainWindow
@@ -282,9 +332,12 @@ class MyPRLMain(QMainWindow):
 		self.T_spinbox.valueChanged.connect(self.update)
 		self.T0_spinbox.valueChanged.connect(self.update)
 
+		self.add_button.clicked.connect(self.add_to_data)
+		self.removelast_button.clicked.connect(self.removelast)
+
+		self.table_button.clicked.connect(self.showtable)
 
 #		self.buffer.changed.connect(self.testreceive)
-
 
 		# 1 cause it needs a signal
 		self.updatecalib(1)	
@@ -293,6 +346,16 @@ class MyPRLMain(QMainWindow):
 
 #	def testreceive(self, s):
 #		print(s)
+
+	def add_to_data(self):
+		self.data.add(self.buffer)
+		print(self.data)
+		self.DataTableWindow.table_widget.updatetable(self.data)
+
+	def removelast(self):
+		if len(self.data) > 0:
+			self.data.removelast()
+		self.DataTableWindow.table_widget.updatetable(self.data)
 
 		# update is called two time, not very good but working
 	def update(self, s):
@@ -347,6 +410,12 @@ class MyPRLMain(QMainWindow):
 
 		# note that this should call update() but it does not at __init__ !!
 		self.x0_spinbox.setValue(self.buffer.calib.x0default)
+
+	def showtable(self, s):
+		if self.DataTableWindow.isVisible(): 
+			self.DataTableWindow.hide()
+		else:
+			self.DataTableWindow.show()
 
 if __name__ == '__main__':
 
