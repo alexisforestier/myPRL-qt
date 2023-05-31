@@ -69,6 +69,8 @@ class HPData():
 
 class HPDataTable(QObject):
 	
+	changed = pyqtSignal()
+
 	def __init__(self, df=None, calibrations=None):
 		super().__init__()	
 	
@@ -76,7 +78,6 @@ class HPDataTable(QObject):
 
 		if df is not None:
 			self.reconstruct_from_df(df, calibrations)
-
 
 	def __repr__(self):
 		return str( self.df )
@@ -86,27 +87,41 @@ class HPDataTable(QObject):
 
 	def __setitem__(self, index, HPDataobj):
 		self.datalist[index] = HPDataobj
+		self.changed.emit()
 
 	def __len__(self):
 		return len(self.datalist)
 
+
+	def recalc_item_P(self, index):
+		# method implemented to emit change!
+		self.datalist[index].calcP()
+		self.changed.emit()
+
+	def reinvcalc_item_P(self, index):
+		self.datalist[index].invcalcP()
+		self.changed.emit()
+
 	def setitemval(self, item, attr, val):
 		if val != getattr(self.datalist[item],attr): 
 			setattr(self.datalist[item], attr, val)
+			self.changed.emit()
 
 	def add(self, buffer):
 		# NB:  deepcopy fails if HPData inherits from QObject !
 		# deepcopy absolutely necessary here
 		# Here I work with the HPData object
 		self.datalist.append( deepcopy(buffer) )
+		self.changed.emit()
 
 	def removelast(self):
 		# Here I work with the HPData object
 		self.datalist = self.datalist[:-1]
-
+		self.changed.emit()
 
 	def removespecific(self, index):
 		del self.datalist[index]
+		self.changed.emit()
 
 	def reconstruct_from_df(self, df, calibrations):
 		# erases the previous content!
@@ -121,6 +136,8 @@ class HPDataTable(QObject):
 						  calib = calibrations[row['calib']], # retrieve calib
 						  file = row['file'])
 			self.datalist.append(HPdi)
+
+		self.changed.emit()
 
 	@property
 	def df(self):

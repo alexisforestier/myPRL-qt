@@ -1,6 +1,11 @@
 import sys
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Qt5Agg')
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 from scipy.optimize import minimize
 from PyQt5.QtGui import (QColor, 
 						QDoubleValidator,
@@ -43,14 +48,65 @@ class MyQSeparator(QFrame):
 		self.setFrameShape(QFrame.HLine)
 		self.setFrameShadow(QFrame.Sunken)
 
+class MplCanvas(FigureCanvas):
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi, constrained_layout=True)
+        self.axes = fig.add_subplot(111)
+        super(MplCanvas, self).__init__(fig)
+
+class PmPPlotWindow(QWidget):
+	def __init__(self, HPDataTable_, calibrations_):
+		super().__init__()
+
+		self.setWindowTitle('myPRL-qt plot')
+
+		self.resize(500,400)
+
+		centerPoint = QDesktopWidget().availableGeometry().center()
+		thePosition = (centerPoint.x() + 300, centerPoint.y() - 400)
+		self.move(*thePosition)
+
+		self.data = HPDataTable_
+		self.calibrations = calibrations_
+
+		self.canvas = MplCanvas(self, width=5, height=4, dpi=100)
+		self.toolbar = NavigationToolbar(self.canvas, self)		
+		layout = QVBoxLayout()
+
+		layout.addWidget(self.toolbar)
+		layout.addWidget(self.canvas)
+
+		self.setLayout(layout)
+
+#		self.updateplot()
+
+	def updateplot(self): 
+
+		self.canvas.axes.cla()
+
+		self.canvas.axes.set_xlabel('Pm (bar)')
+		self.canvas.axes.set_ylabel('P (GPa)')
+
+		gr = self.data.df.groupby('calib')
+		groups = gr.groups.keys()
+
+		for g in groups:
+			subdf = gr.get_group(g)
+			self.canvas.axes.plot(subdf['Pm'], 
+								  subdf['P'], 
+								  marker='o',
+								  color=self.calibrations[g].color,
+								  label=g)
+		if len(groups) != 0:
+			self.canvas.axes.legend()
+		self.canvas.draw()
 
 class HPTableWidget(QTableWidget):
 	''' Qt widget class for HPDataTable objects '''
-
-	def __init__(self, HPDataTable):
+	def __init__(self, HPDataTable_):
 		super().__init__()
 
-		self.data = HPDataTable
+		self.data = HPDataTable_
 
 		self.setStyleSheet('font-size: 12px;')
 
@@ -65,7 +121,7 @@ class HPTableWidget(QTableWidget):
 		self.cellChanged[int,int].connect( self.getfromentry )
 
 		deleteline_shortcut = QShortcut(QKeySequence("Ctrl+D"), self)
-		deleteline_shortcut.activated.connect(self.test)
+		deleteline_shortcut.activated.connect(self.remove_line)
 
 	def getfromentry(self, row, col):
 		# takes care of types
@@ -80,20 +136,15 @@ class HPTableWidget(QTableWidget):
 			self.data.setitemval(row, key, newval)
 
 			if key == 'P':
-				self.data[row].invcalcP()
+				self.data.reinvcalc_item_P(row)
 			elif key in ['x', 'x0', 'T', 'T0'] :
-				self.data[row].calcP()
-		
-			self.updatetable(self.data)
-
+				self.data.recalc_item_P(row)
+	
 		else: # k = calib 
 			# I do not accept any calib change (for now a least)
 			pass
 
-	def updatetable(self, new):
-		# new is an HPDataTable
-		# probably not necessary:
-		self.data = new
+	def updatetable(self):
 
 		nrows, ncols = self.data.df.shape
 		self.setRowCount(nrows)
@@ -116,11 +167,10 @@ class HPTableWidget(QTableWidget):
 		self.cellChanged[int,int].connect( self.getfromentry )
 		
 
-	def test(self):
+	def remove_line(self):
 		index = self.currentRow()
 		if index >= 0:
 			self.data.removespecific(index)
-		self.updatetable(self.data)
 
 
 
@@ -135,7 +185,7 @@ class HPTableWindow(QWidget):
 		self.resize(500,400)
 
 		centerPoint = QDesktopWidget().availableGeometry().center()
-		thePosition = (centerPoint.x() + 200, centerPoint.y() - 100)
+		thePosition = (centerPoint.x() + 200, centerPoint.y() + 50)
 		self.move(*thePosition)
 
 		layout = QVBoxLayout()
@@ -182,7 +232,6 @@ class HPTableWindow(QWidget):
 							  index_col=None)
 
 		self.data.reconstruct_from_df(df_, self.calibrations)
-		self.table_widget.updatetable(self.data)
 
 	def get_save_filename_dialog(self):
 
@@ -226,6 +275,7 @@ class HPTableWindow(QWidget):
 			return fileName
 		else:
 			return None
+
 
 class MyPRLMain(QMainWindow):
 	def __init__(self):
@@ -278,6 +328,7 @@ class MyPRLMain(QMainWindow):
 		self.calibrations = {a.name:a for a in calib_list}
 		self.data = myPRLModels.HPDataTable()
 		self.DataTableWindow = HPTableWindow(self.data, self.calibrations)
+		self.PmPplot_win = PmPPlotWindow(self.data, self.calibrations)
 
 		# this will be our initial state
 		self.buffer = myPRLModels.HPData(Pm = 0, 
@@ -426,7 +477,7 @@ class MyPRLMain(QMainWindow):
 		self.x0_spinbox.setValue(self.buffer.x0)
 		self.T0_spinbox.setValue(self.buffer.T0)
 		self.calibration_combo.setCurrentText(self.buffer.calib.name) 
-	#	self.file
+
 
 
 		# Connects
@@ -444,6 +495,8 @@ class MyPRLMain(QMainWindow):
 		self.add_button.clicked.connect(self.add_to_data)
 		self.removelast_button.clicked.connect(self.removelast)
 
+		self.PmPplot_button.clicked.connect(self.showPmPplot)
+
 		# shortcuts
 
 		add_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
@@ -457,25 +510,25 @@ class MyPRLMain(QMainWindow):
 
 		self.table_button.clicked.connect(self.showtable)
 
-#		self.buffer.changed.connect(self.testreceive)
+		self.data.changed.connect(self.DataTableWindow.table_widget.updatetable)
+		self.data.changed.connect(self.PmPplot_win.updateplot)
+#		self.data.changed.connect(self.testreceive)
 
 		# 1 cause it needs a signal
 		self.updatecalib(1)	
 		# for some reason updatecalib does not call update at __init__
 		self.update(1)
 
-#	def testreceive(self, s):
-#		print(s)
+#	def testreceive(self):
+#		print('changed!')
 
 	def add_to_data(self):
 		self.data.add(self.buffer)
 	#	print(self.data)
-		self.DataTableWindow.table_widget.updatetable(self.data)
 
 	def removelast(self):
 		if len(self.data) > 0:
 			self.data.removelast()
-		self.DataTableWindow.table_widget.updatetable(self.data)
 
 		# update is called two time, not very good but working
 	def update(self, s):
@@ -536,6 +589,13 @@ class MyPRLMain(QMainWindow):
 			self.DataTableWindow.hide()
 		else:
 			self.DataTableWindow.show()
+
+	def showPmPplot(self, s=None):
+		if self.PmPplot_win.isVisible(): 
+			self.PmPplot_win.hide()
+		else:
+			self.PmPplot_win.show()
+
 
 if __name__ == '__main__':
 
