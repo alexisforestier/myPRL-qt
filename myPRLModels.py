@@ -69,10 +69,14 @@ class HPData():
 
 class HPDataTable(QObject):
 	
-	def __init__(self):
+	def __init__(self, df=None, calibrations=None):
 		super().__init__()	
 	
 		self.datalist = []
+
+		if df is not None:
+			self.reconstruct_from_df(df, calibrations)
+
 
 	def __repr__(self):
 		return str( self.df )
@@ -99,6 +103,24 @@ class HPDataTable(QObject):
 	def removelast(self):
 		# Here I work with the HPData object
 		self.datalist = self.datalist[:-1]
+
+
+	def removespecific(self, index):
+		del self.datalist[index]
+
+	def reconstruct_from_df(self, df, calibrations):
+		# erases the previous content!
+		self.datalist = []
+		for _, row in df.iterrows():
+			HPdi = HPData(Pm = row['Pm'],
+						  P  = row['P'], 
+						  x  = row['x'], 
+						  T  = row['T'], 
+						  x0 = row['x0'], 
+						  T0 = row['T0'],
+						  calib = calibrations[row['calib']], # retrieve calib
+						  file = row['file'])
+			self.datalist.append(HPdi)
 
 	@property
 	def df(self):
@@ -145,12 +167,10 @@ if __name__ == '__main__':
 	datas.add(data)
 
 
-	print(datas)
 	
-
-
 	datas.setitemval(1, 'P', 21300)
 
+	data2 = HPDataTable(datas.df, {'Ruby2020':Ruby2020})
+	print(data2.df.equals(datas.df))
 
-
-	print(datas.df.iloc[0,0])
+	####""

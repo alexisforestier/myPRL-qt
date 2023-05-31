@@ -64,6 +64,9 @@ class HPTableWidget(QTableWidget):
 
 		self.cellChanged[int,int].connect( self.getfromentry )
 
+		deleteline_shortcut = QShortcut(QKeySequence("Ctrl+D"), self)
+		deleteline_shortcut.activated.connect(self.test)
+
 	def getfromentry(self, row, col):
 		# takes care of types
 		try:
@@ -83,12 +86,14 @@ class HPTableWidget(QTableWidget):
 		
 			self.updatetable(self.data)
 
-		else: 
+		else: # k = calib 
 			# I do not accept any calib change (for now a least)
 			pass
 
-
 	def updatetable(self, new):
+		# new is an HPDataTable
+		# probably not necessary:
+		self.data = new
 
 		nrows, ncols = self.data.df.shape
 		self.setRowCount(nrows)
@@ -111,13 +116,20 @@ class HPTableWidget(QTableWidget):
 		self.cellChanged[int,int].connect( self.getfromentry )
 		
 
+	def test(self):
+		index = self.currentRow()
+		if index >= 0:
+			self.data.removespecific(index)
+		self.updatetable(self.data)
+
+
 
 class HPTableWindow(QWidget):
-	def __init__(self, HPDataTable_):
+	def __init__(self, HPDataTable_, calibrations_):
 		super().__init__()
 
 		self.data = HPDataTable_
-
+		self.calibrations = calibrations_
 		self.setWindowTitle('myPRL-qt table')
 
 		self.resize(500,400)
@@ -151,13 +163,8 @@ class HPTableWindow(QWidget):
 		load_shortcut.activated.connect(self.load_data_from_csv)
 
 
-
-
 	def save_data_to_csv(self):
-		file = self.get_csv_file_dialog()
-
-		# I NEED TO MANAGE THE CREATION OF THE FILE IF IT DOES NOT EXIST
-
+		file = self.get_save_filename_dialog()
 		if file:
 			self.data.df.to_csv(file, 
 								sep='\t', 
@@ -166,28 +173,55 @@ class HPTableWindow(QWidget):
 								index=False)
 
 	def load_data_from_csv(self):
-		file = self.get_csv_file_dialog()
+		file = self.get_load_filename_dialog()
 		if file:
-
 			df_ = pd.read_csv(file, 
-								sep='\t', 
-								decimal='.', 
-								header=[0],
-								index_col=None)
-			print(df_)
-			
-			# I WILL NEED HERE TO CONSTRUCT AN HPDATATABLE VIA DF USING MAIN WINDOW CALIBRATIONS LIST
-			# I THUS NEED TO WRITE A METHOD TO RECONSTRUCT AN HPDATATABLE OBJECT FROM THE CORRESPONDING DF
+							  sep='\t', 
+							  decimal='.', 
+							  header=[0],
+							  index_col=None)
 
+		self.data.reconstruct_from_df(df_, self.calibrations)
+		self.table_widget.updatetable(self.data)
 
+	def get_save_filename_dialog(self):
 
+		options =  QFileDialog.Options() 
+	#	options = QFileDialog.DontUseNativeDialog
+	# seems to bring an warning on Linux 5.10.0-19-amd64 #1 SMP Debian 5.10.149-2 (2022-10-21) x86_64 GNU/Linux
+	# if I choose to not use Native Dialog - Hope it works with native on other platform
 
-	def get_csv_file_dialog(self):
+		fileName, fileType = \
+			QFileDialog.getSaveFileName(self,
+										"myPRL-qt: Save data to csv", 
+										"",
+										"CSV Files (*.csv);;All Files (*)", 
+										options=options)
 
-		options = QFileDialog.Options()
-		options |= QFileDialog.DontUseNativeDialog
-		fileName, _ = QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "",
-												 "CSV Files (*.csv);;All Files (*)", options=options)
+		if fileType == 'CSV Files (*.csv)':
+			if '.csv' in fileName:
+				pass
+			else:
+				fileName += '.csv'
+
+		if fileName:
+			return fileName
+		else:
+			return None
+
+	def get_load_filename_dialog(self):
+
+		options =  QFileDialog.Options() 
+	#	options = QFileDialog.DontUseNativeDialog
+	# seems to bring an warning on Linux 5.10.0-19-amd64 #1 SMP Debian 5.10.149-2 (2022-10-21) x86_64 GNU/Linux
+	# if I choose to not use Native Dialog - Hope it works with native on other platform
+
+		fileName, _ = \
+			QFileDialog.getOpenFileName(self,
+										"myPRL-qt: Load data from csv", 
+										"",
+										"CSV Files (*.csv);;All Files (*)", 
+										options=options)
 		if fileName:
 			return fileName
 		else:
@@ -233,12 +267,17 @@ class MyPRLMain(QMainWindow):
 							      xstep = .1,
 							      color = 'lightblue')
 
-		# put all calibrations here
-		# keys are names
-		self.calibrations = {'Ruby2020': Ruby2020, 
-						     'Samarium Borate Datchi 1997': SamariumDatchi,
-						     'Diamond Raman Edge Akahama 2006': Akahama2006,
-						     'cBN Raman Datchi 2007': cBNDatchi}
+		calib_list = [Ruby2020, 
+					  SamariumDatchi, 
+					  Akahama2006, 
+					  cBNDatchi]
+
+###############################################################################
+
+
+		self.calibrations = {a.name:a for a in calib_list}
+		self.data = myPRLModels.HPDataTable()
+		self.DataTableWindow = HPTableWindow(self.data, self.calibrations)
 
 		# this will be our initial state
 		self.buffer = myPRLModels.HPData(Pm = 0, 
@@ -250,8 +289,7 @@ class MyPRLMain(QMainWindow):
 	      		  					calib = self.calibrations['Ruby2020'],
 	      		  					file = 'No')
 
-		self.data = myPRLModels.HPDataTable()
-		self.DataTableWindow = HPTableWindow(self.data)
+
 
 ##############################################################################
 
@@ -406,6 +444,17 @@ class MyPRLMain(QMainWindow):
 		self.add_button.clicked.connect(self.add_to_data)
 		self.removelast_button.clicked.connect(self.removelast)
 
+		# shortcuts
+
+		add_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
+		add_shortcut.activated.connect(self.add_to_data)
+
+		removelast_shortcut = QShortcut(QKeySequence("Ctrl+R"), self)
+		removelast_shortcut.activated.connect(self.removelast)
+
+		showtable_shortcut = QShortcut(QKeySequence("Ctrl+T"), self)
+		showtable_shortcut.activated.connect(self.showtable)
+
 		self.table_button.clicked.connect(self.showtable)
 
 #		self.buffer.changed.connect(self.testreceive)
@@ -482,7 +531,7 @@ class MyPRLMain(QMainWindow):
 		# note that this should call update() but it does not at __init__ !!
 		self.x0_spinbox.setValue(self.buffer.calib.x0default)
 
-	def showtable(self, s):
+	def showtable(self, s=None):
 		if self.DataTableWindow.isVisible(): 
 			self.DataTableWindow.hide()
 		else:
